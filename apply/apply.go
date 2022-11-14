@@ -58,23 +58,29 @@ func (o *applyOptions) ToRESTMapper() (meta.RESTMapper, error) {
 	return mapper, nil
 }
 
-func (o *applyOptions) Apply(ctx context.Context, data []byte) error {
-	restmapper, err := o.ToRESTMapper()
+func (o *applyOptions) Apply(ctx context.Context, data []byte) (errs []error) {
+	restMapper, err := o.ToRESTMapper()
 	if err != nil {
-		return err
+		errs = append(errs, err)
+		return errs
 	}
 
 	unstructList, err := Decode(data)
 	if err != nil {
-		return err
+		errs = append(errs, err)
+		return errs
 	}
 
 	for _, unstruct := range unstructList {
 		klog.V(5).Infof("Apply object: %#v", unstruct)
-		if _, err := ApplyUnstructured(ctx, o.dynamicClient, restmapper, unstruct, o.serverSide); err != nil {
-			return err
+		if _, err := ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
+			// 如果apply该对象出错，跳过该对象的apply，继续下一个对象的apply
+			errs = append(errs, err)
 		}
 		klog.V(2).Infof("%s/%s applyed", strings.ToLower(unstruct.GetKind()), unstruct.GetName())
+	}
+	if len(errs) > 0 {
+		return errs
 	}
 	return nil
 }
