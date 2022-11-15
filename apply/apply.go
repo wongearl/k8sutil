@@ -63,19 +63,17 @@ func (o *applyOptions) ToRESTMapper() (meta.RESTMapper, error) {
 	return mapper, nil
 }
 
-func (o *applyOptions) Apply(ctx context.Context, data []byte) (errs []error) {
+func (o *applyOptions) Apply(ctx context.Context, data []byte) (failedObjects []FailedObject, err error) {
 	restMapper, err := o.ToRESTMapper()
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return failedObjects, err
 	}
 
 	unstructList, err := Decode(data)
 	if err != nil {
-		errs = append(errs, err)
-		return errs
+		return failedObjects, err
 	}
-	failedObjects := []FailedObject{}
+
 	for _, unstruct := range unstructList {
 		klog.V(5).Infof("Apply object: %#v", unstruct)
 		if object, err := ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
@@ -85,10 +83,8 @@ func (o *applyOptions) Apply(ctx context.Context, data []byte) (errs []error) {
 		}
 		klog.V(2).Infof("%s/%s applyed", strings.ToLower(unstruct.GetKind()), unstruct.GetName())
 	}
-	if len(errs) > 0 {
-		return errs
-	}
-	return nil
+
+	return failedObjects, err
 }
 
 func Decode(data []byte) ([]unstructured.Unstructured, error) {
