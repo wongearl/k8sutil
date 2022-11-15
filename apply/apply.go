@@ -35,6 +35,11 @@ type applyOptions struct {
 	discoveryClient discovery.DiscoveryInterface
 	serverSide      bool
 }
+type FailedObject struct {
+	Name       string
+	Kind       string
+	ErrMessage string
+}
 
 func NewApplyOptions(dynamicClient dynamic.Interface, discoveryClient discovery.DiscoveryInterface) *applyOptions {
 	return &applyOptions{
@@ -70,12 +75,13 @@ func (o *applyOptions) Apply(ctx context.Context, data []byte) (errs []error) {
 		errs = append(errs, err)
 		return errs
 	}
-
+	failedObjects := []FailedObject{}
 	for _, unstruct := range unstructList {
 		klog.V(5).Infof("Apply object: %#v", unstruct)
-		if _, err := ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
+		if object, err := ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
 			// 如果apply该对象出错，跳过该对象的apply，继续下一个对象的apply
-			errs = append(errs, err)
+			tmpFailedObject := FailedObject{Name: object.GetName(), Kind: object.GetKind(), ErrMessage: err.Error()}
+			failedObjects = append(failedObjects, tmpFailedObject)
 		}
 		klog.V(2).Infof("%s/%s applyed", strings.ToLower(unstruct.GetKind()), unstruct.GetName())
 	}
