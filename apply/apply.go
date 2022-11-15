@@ -76,7 +76,7 @@ func (o *applyOptions) Apply(ctx context.Context, data []byte) (failedObjects []
 
 	for _, unstruct := range unstructList {
 		klog.V(5).Infof("Apply object: %#v", unstruct)
-		if _, err := ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
+		if _, err = ApplyUnstructured(ctx, o.dynamicClient, restMapper, unstruct, o.serverSide); err != nil {
 			// 如果apply该对象出错，跳过该对象的apply，继续下一个对象的apply
 			tmpFailedObject := FailedObject{Name: unstruct.GetName(), Kind: unstruct.GetKind(), ErrMessage: err.Error()}
 			failedObjects = append(failedObjects, tmpFailedObject)
